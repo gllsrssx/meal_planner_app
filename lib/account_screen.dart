@@ -1,5 +1,5 @@
 import 'package:firebase_ui_oauth_apple/firebase_ui_oauth_apple.dart';
-import 'package:firebase_ui_oauth_facebook/firebase_ui_oauth_facebook.dart';
+// import 'package:firebase_ui_oauth_facebook/firebase_ui_oauth_facebook.dart';
 import 'package:firebase_ui_oauth_google/firebase_ui_oauth_google.dart';
 import 'package:firebase_ui_oauth_twitter/firebase_ui_oauth_twitter.dart';
 import 'package:flutter/material.dart';
@@ -38,7 +38,7 @@ class AccountScreen extends StatelessWidget {
                 PhoneAuthProvider(),
                 GoogleProvider(clientId: Config.googleClientId),
                 AppleProvider(),
-                FacebookProvider(clientId: Config.facebookClientId),
+                // FacebookProvider(clientId: Config.facebookClientId),
                 TwitterProvider(
                   apiKey: Config.twitterApiKey,
                   apiSecretKey: Config.twitterApiSecretKey,
@@ -47,7 +47,7 @@ class AccountScreen extends StatelessWidget {
               ],
               actions: [
                 SignedOutAction((context) {
-                  // FirebaseUIAuth.signOut(context: context);
+                  FirebaseUIAuth.signOut(context: context);
                   Navigator.pushReplacementNamed(context, '/sign-in');
                 }),
               ],
