@@ -11,9 +11,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:meal_planner_app/account_screen.dart';
-import 'package:meal_planner_app/day_detail.dart';
 import 'package:meal_planner_app/Home_screen.dart';
-import 'package:meal_planner_app/week_overview.dart';
 
 import 'config.dart';
 // import 'decorations.dart';
@@ -179,8 +177,6 @@ class FirebaseAuthUI extends StatelessWidget {
 
         '/Home': (context) => const HomeScreen(),
         '/Account': (context) => const AccountScreen(),
-        '/week_overview': (context) => WeekOverview(startDate: DateTime.now()),
-        '/day_detail': (context) => DayDetail(date: DateTime.now()),
 
         '/verify-email': (context) =>
             const HomeScreen(), // EmailVerificationScreen(

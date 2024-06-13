@@ -1,5 +1,5 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:meal_planner_app/week_overview.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -8,7 +8,7 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Home'),
+        title: const Text('Meal Planner'),
         automaticallyImplyLeading: false,
         actions: <Widget>[
           IconButton(
@@ -19,23 +19,7 @@ class HomeScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-                'Welcome ${FirebaseAuth.instance.currentUser?.displayName ?? ''}!',
-                style:
-                    const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pushNamed(context, '/week_overview');
-              },
-              child: const Text('Week Overview'),
-            ),
-          ],
-        ),
-      ),
+      body: WeekOverview(startDate: DateTime.now()),
     );
   }
 }
