@@ -47,8 +47,7 @@ class AccountScreen extends StatelessWidget {
               ],
               actions: [
                 SignedOutAction((context) {
-                  FirebaseUIAuth.signOut(context: context);
-                  Navigator.pushReplacementNamed(context, '/sign-in');
+                  Navigator.pushReplacementNamed(context, '/');
                 }),
               ],
             ),

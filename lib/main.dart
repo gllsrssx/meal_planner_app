@@ -250,7 +250,6 @@ class FirebaseAuthUI extends StatelessWidget {
         '/Profile': (context) => ProfileScreen(
               actions: [
                 SignedOutAction((context) {
-                  FirebaseUIAuth.signOut(context: context);
                   Navigator.pushReplacementNamed(context, '/');
                 }),
                 mfaAction,

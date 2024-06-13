@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 class DayDetail extends StatelessWidget {
   final DateTime date;
@@ -9,7 +10,7 @@ class DayDetail extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('${date.weekday}, ${date.day} ${date.month} ${date.year}'),
+        title: Text(DateFormat('EEEE d-M-y').format(date)),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),

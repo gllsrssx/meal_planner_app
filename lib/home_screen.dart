@@ -19,7 +19,9 @@ class HomeScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: WeekOverview(startDate: DateTime.now()),
+      body: WeekOverview(
+        initialStartDate: DateTime.now(),
+      ),
     );
   }
 }
