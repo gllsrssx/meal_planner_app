@@ -10,6 +10,10 @@ import 'package:firebase_ui_oauth_twitter/firebase_ui_oauth_twitter.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:meal_planner_app/account_screen.dart';
+import 'package:meal_planner_app/day_detail.dart';
+import 'package:meal_planner_app/Home_screen.dart';
+import 'package:meal_planner_app/week_overview.dart';
 
 import 'config.dart';
 // import 'decorations.dart';
@@ -19,8 +23,8 @@ final actionCodeSettings = ActionCodeSettings(
   url: 'flutter-b2483.firebaseapp.com',
   handleCodeInApp: true,
   androidMinimumVersion: '1',
-  androidPackageName: 'io.flutter.plugins.firebase_ui.firebase_ui_example',
-  iOSBundleId: 'io.flutter.plugins.firebaseUiExample',
+  androidPackageName: 'io.flutter.plugins.firebase_ui.firebase_ui',
+  iOSBundleId: 'io.flutter.plugins.firebaseUi',
 );
 final emailLinkProviderConfig = EmailLinkAuthProvider(
   actionCodeSettings: actionCodeSettings,
@@ -45,7 +49,7 @@ Future<void> main() async {
     ),
   ]);
 
-  runApp(const FirebaseAuthUIExample());
+  runApp(const FirebaseAuthUI());
 }
 
 class LabelOverrides extends DefaultLocalizations {
@@ -55,16 +59,16 @@ class LabelOverrides extends DefaultLocalizations {
   String get emailInputLabel => 'Enter your email';
 }
 
-class FirebaseAuthUIExample extends StatelessWidget {
-  const FirebaseAuthUIExample({super.key});
+class FirebaseAuthUI extends StatelessWidget {
+  const FirebaseAuthUI({super.key});
 
   String get initialRoute {
     final user = FirebaseAuth.instance.currentUser;
 
     return switch (user) {
       null => '/',
-      // User(emailVerified: false, email: final String _) => '/verify-email',
-      _ => '/profile',
+      User(emailVerified: false, email: final String _) => '/verify-email',
+      _ => '/Home',
     };
   }
 
@@ -86,7 +90,7 @@ class FirebaseAuthUIExample extends StatelessWidget {
           context: context,
         );
 
-        nav.pushReplacementNamed('/profile');
+        nav.pushReplacementNamed('/Home');
       },
     );
 
@@ -126,9 +130,9 @@ class FirebaseAuthUIExample extends StatelessWidget {
 
                   switch (user) {
                     case User(emailVerified: true):
-                      Navigator.pushReplacementNamed(context, '/profile');
-                    // case User(emailVerified: false, email: final String _):
-                    //   Navigator.pushNamed(context, '/verify-email');
+                      Navigator.pushReplacementNamed(context, '/Home');
+                    case User(emailVerified: false, email: final String _):
+                      Navigator.pushNamed(context, '/verify-email');
                   }
                 }),
                 mfaAction,
@@ -172,20 +176,27 @@ class FirebaseAuthUIExample extends StatelessWidget {
                 );
               },
             ),
-        // '/verify-email': (context) => EmailVerificationScreen(
-        //       // headerBuilder: headerIcon(Icons.verified),
-        //       // sideBuilder: sideIcon(Icons.verified),
-        //       actionCodeSettings: actionCodeSettings,
-        //       actions: [
-        //         EmailVerifiedAction(() {
-        //           Navigator.pushReplacementNamed(context, '/profile');
-        //         }),
-        //         AuthCancelledAction((context) {
-        //           FirebaseUIAuth.signOut(context: context);
-        //           Navigator.pushReplacementNamed(context, '/');
-        //         }),
-        //       ],
-        //     ),
+
+        '/Home': (context) => const HomeScreen(),
+        '/Account': (context) => const AccountScreen(),
+        '/week_overview': (context) => WeekOverview(startDate: DateTime.now()),
+        '/day_detail': (context) => DayDetail(date: DateTime.now()),
+
+        '/verify-email': (context) =>
+            const HomeScreen(), // EmailVerificationScreen(
+        // headerBuilder: headerIcon(Icons.verified),
+        // sideBuilder: sideIcon(Icons.verified),
+        //   actionCodeSettings: actionCodeSettings,
+        //   actions: [
+        //     EmailVerifiedAction(() {
+        //       Navigator.pushReplacementNamed(context, '/Home');
+        //     }),
+        //     AuthCancelledAction((context) {
+        //       FirebaseUIAuth.signOut(context: context);
+        //       Navigator.pushReplacementNamed(context, '/');
+        //     }),
+        //   ],
+        // ),
         '/phone': (context) => PhoneInputScreen(
               actions: [
                 SMSCodeRequestedAction((context, action, flowKey, phone) {
@@ -209,7 +220,7 @@ class FirebaseAuthUIExample extends StatelessWidget {
           return SMSCodeInputScreen(
             actions: [
               AuthStateChangeAction<SignedIn>((context, state) {
-                Navigator.of(context).pushReplacementNamed('/profile');
+                Navigator.of(context).pushReplacementNamed('/Home');
               })
             ],
             flowKey: arguments?['flowKey'],
@@ -240,9 +251,10 @@ class FirebaseAuthUIExample extends StatelessWidget {
               // headerBuilder: headerIcon(Icons.link),
               // sideBuilder: sideIcon(Icons.link),
             ),
-        '/profile': (context) => ProfileScreen(
+        '/Profile': (context) => ProfileScreen(
               actions: [
                 SignedOutAction((context) {
+                  FirebaseUIAuth.signOut(context: context);
                   Navigator.pushReplacementNamed(context, '/');
                 }),
                 mfaAction,
@@ -255,7 +267,7 @@ class FirebaseAuthUIExample extends StatelessWidget {
               showDeleteConfirmationDialog: true,
             ),
       },
-      title: 'Firebase UI demo',
+      title: 'Firebase UI Auth',
       debugShowCheckedModeBanner: false,
       supportedLocales: const [Locale('en')],
       localizationsDelegates: [
