@@ -88,12 +88,12 @@ class _WeekOverviewState extends State<WeekOverview> {
               final dayName = DateFormat('EEEE, d').format(day);
               return ListTile(
                 title: Text(dayName),
-                subtitle: Column(
+                subtitle: const Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Breakfast: ${getMeal(day, 'breakfast')}'),
-                    Text('Lunch: ${getMeal(day, 'lunch')}'),
-                    Text('Dinner: ${getMeal(day, 'dinner')}'),
+                    // Text('Breakfast: ${getMeal(day, 'breakfast')}'),
+                    // Text('Lunch: ${getMeal(day, 'lunch')}'),
+                    // Text('Dinner: ${getMeal(day, 'dinner')}'),
                   ],
                 ),
                 onTap: () {
