@@ -53,8 +53,7 @@ class _OverviewScreenState extends State<OverviewScreen> {
             icon: const Icon(Icons.today),
             onPressed: () {
               final today = DateTime.now();
-              // No need to calculate difference from Monday, as the week starts from 'today'
-              final startOfWeek = today; // The week starts from today
+              final startOfWeek = today; 
               final difference =
                   startOfWeek.difference(widget.initialStartDate).inDays;
               final pageToJump = difference ~/ 7;
@@ -92,24 +91,24 @@ class _OverviewScreenState extends State<OverviewScreen> {
               final dayName = DateFormat('EEEE d').format(day);
               return Padding(
                 padding:
-                    const EdgeInsets.all(3.0), // Adds outer padding to each row
+                    const EdgeInsets.all(3.0), 
                 child: Card(
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(
-                        10.0), // Rounds the corners of the card
+                        10.0), 
                   ),
                   child: ListTile(
                     contentPadding: const EdgeInsets.symmetric(
                         vertical: 3.0,
-                        horizontal: 6.0), // Adjusts ListTile padding
+                        horizontal: 6.0), 
                     title: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
                           dayName,
                           style: const TextStyle(
-                            fontWeight: FontWeight.bold, // Makes text bold
-                            fontSize: 16, // Increases font size
+                            fontWeight: FontWeight.bold, 
+                            fontSize: 16, 
                           ),
                         ),
                         FutureBuilder<Map<String, bool>>(
@@ -126,7 +125,7 @@ class _OverviewScreenState extends State<OverviewScreen> {
                             }
                             if (!snapshot.hasData) {
                               return const SizedBox
-                                  .shrink(); // Placeholder for no data
+                                  .shrink(); 
                             }
                             final meals = snapshot.data!;
                             List<Widget> children = [];
@@ -140,8 +139,10 @@ class _OverviewScreenState extends State<OverviewScreen> {
                               ));
                             }
                             if (meals['lunch'] == true) {
-                              if (children.isNotEmpty)
-                                children.add(SizedBox(width: 8)); // Add space
+                              if (children.isNotEmpty) {
+                                children
+                                    .add(const SizedBox(width: 8)); 
+                              }
                               children.add(CircleAvatar(
                                 radius: 12,
                                 backgroundColor: Colors.green[200],
@@ -149,8 +150,10 @@ class _OverviewScreenState extends State<OverviewScreen> {
                               ));
                             }
                             if (meals['dinner'] == true) {
-                              if (children.isNotEmpty)
-                                children.add(SizedBox(width: 8)); // Add space
+                              if (children.isNotEmpty) {
+                                children
+                                    .add(const SizedBox(width: 8)); 
+                              }
                               children.add(CircleAvatar(
                                 radius: 12,
                                 backgroundColor: Colors.red[200],
@@ -159,8 +162,10 @@ class _OverviewScreenState extends State<OverviewScreen> {
                               ));
                             }
                             if (meals['snack'] == true) {
-                              if (children.isNotEmpty)
-                                children.add(SizedBox(width: 8)); // Add space
+                              if (children.isNotEmpty) {
+                                children
+                                    .add(const SizedBox(width: 8)); 
+                              }
                               children.add(CircleAvatar(
                                 radius: 12,
                                 backgroundColor: Colors.orange[200],
@@ -177,7 +182,6 @@ class _OverviewScreenState extends State<OverviewScreen> {
                     ),
                     onTap: () => _showMealsPopup(context, day),
                     onLongPress: () async {
-                      // Navigate to the DayDetail page on long press
                       final result = await Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -186,7 +190,6 @@ class _OverviewScreenState extends State<OverviewScreen> {
                       );
                       if (result == true) {
                         setState(() {
-                          // Refresh the list
                         });
                       }
                     },
@@ -208,12 +211,11 @@ class _OverviewScreenState extends State<OverviewScreen> {
     }
 
     final String formattedDate = DateFormat('yyyy-MM-dd').format(date);
-    print("Fetching meals for date: $formattedDate"); // Debug statement
+    print("Fetching meals for date: $formattedDate"); 
 
     List<Map<String, String>> detailedMeals = [];
 
     try {
-      // Fetch meals for the specific date
       final dateRef = FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
@@ -226,7 +228,7 @@ class _OverviewScreenState extends State<OverviewScreen> {
         dateId = dateSnapshot.docs.first.id;
       } else {
         print(
-            "No meals found for the specified date: $formattedDate"); // Debug statement
+            "No meals found for the specified date: $formattedDate"); 
         return [];
       }
 
@@ -263,7 +265,6 @@ class _OverviewScreenState extends State<OverviewScreen> {
 
   void _showMealsPopup(BuildContext context, DateTime day) async {
     List<Map<String, String>> meals = await getDetailedMealsForDay(day);
-    // Define a mapping from meal types to icons
     final Map<String, IconData> mealIcons = {
       'breakfast': Icons.free_breakfast,
       'lunch': Icons.lunch_dining,
@@ -279,18 +280,17 @@ class _OverviewScreenState extends State<OverviewScreen> {
               ? Column(
                   mainAxisSize: MainAxisSize.min,
                   children: meals.map((meal) {
-                    // Use the mapping to get the corresponding icon
                     IconData icon = mealIcons[meal['meal']] ?? Icons.error;
                     return ListTile(
-                      leading: Icon(icon), // Display the icon
+                      leading: Icon(icon), 
                       title: Text(meal['details'] ?? ''),
                     );
                   }).toList(),
                 )
-              : Text('No meals found for this day.'),
+              : const Text('Long press to set the meals for this day.'),
           actions: [
             TextButton(
-              child: Text('Close'),
+              child: const Text('Close'),
               onPressed: () {
                 Navigator.of(context).pop();
               },

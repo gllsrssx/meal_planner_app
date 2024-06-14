@@ -1,24 +1,18 @@
-// Importeer de benodigde pakketten
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 
-// Definieer de DayDetail klasse die een StatefulWidget is
 class DayDetail extends StatefulWidget {
-  final DateTime date; // Datum voor de detailpagina
-
-  // Constructor voor DayDetail met vereiste datumparameter
+  final DateTime date; 
   const DayDetail({super.key, required this.date});
 
   @override
   _DayDetailState createState() => _DayDetailState();
 }
 
-// De staat van de DayDetail widget
 class _DayDetailState extends State<DayDetail> {
-  // Map voor het bijhouden van tekstveldcontrollers voor verschillende maaltijden
   final Map<String, TextEditingController> _controllers = {
     'breakfast': TextEditingController(),
     'lunch': TextEditingController(),
@@ -31,7 +25,7 @@ class _DayDetailState extends State<DayDetail> {
     'dinner': false,
     'snack': false,
   };
-  bool _isLoading = false; // Laadindicatorstatus
+  bool _isLoading = false; 
   Map<String, List<String>> _previousMeals = {
     'breakfast': [],
     'lunch': [],
@@ -42,10 +36,9 @@ class _DayDetailState extends State<DayDetail> {
   @override
   void initState() {
     super.initState();
-    _fetchAndSetLastMeals(); // Haal de laatste maaltijden op bij initialisatie
+    _fetchAndSetLastMeals(); 
   }
 
-  // Functie om maaltijdgegevens op te slaan
   Future<void> _saveMealData() async {
     setState(() => _isLoading = true);
     final String? uid = FirebaseAuth.instance.currentUser?.uid;
@@ -65,7 +58,6 @@ class _DayDetailState extends State<DayDetail> {
           await _linkMealAndDate(mealId, dateId, uid, entry.key);
 
           if (_isRecurring[entry.key]!) {
-            // Adjusted to use widget.date.weekday to find remaining days of the same weekday
             final List<DateTime> remainingWeekdays =
                 _findRemainingWeekdays(widget.date, widget.date.weekday - 1);
             for (var day in remainingWeekdays) {
@@ -86,13 +78,12 @@ class _DayDetailState extends State<DayDetail> {
     }
   }
 
-  // Helper function to find all remaining days of a specified weekday until the end of the month
   List<DateTime> _findRemainingWeekdays(DateTime startDate, int weekday) {
     List<DateTime> weekdays = [];
     int daysToAdd = (weekday - (startDate.weekday - 1) + 7) % 7;
     if (daysToAdd == 0) {
       daysToAdd =
-          7; // Start from the next occurrence if today matches the weekday
+          7; 
     }
     DateTime tempDate = startDate.add(Duration(days: daysToAdd));
     while (tempDate.month == startDate.month) {
@@ -102,7 +93,6 @@ class _DayDetailState extends State<DayDetail> {
     return weekdays;
   }
 
-  // Functie om te controleren of een maaltijd bestaat, zo niet, maak deze aan
   Future<String> _ensureMealExists(
       String name, String mealType, String uid) async {
     final mealRef = FirebaseFirestore.instance
@@ -126,7 +116,6 @@ class _DayDetailState extends State<DayDetail> {
     }
   }
 
-  // Functie om te controleren of een datum bestaat, zo niet, maak deze aan
   Future<String> _ensureDateExists(String date, String uid) async {
     final dateRef = FirebaseFirestore.instance
         .collection('users')
@@ -148,7 +137,6 @@ class _DayDetailState extends State<DayDetail> {
     }
   }
 
-  // Functie om een maaltijd te koppelen aan een datum
   Future<void> _linkMealAndDate(
       String mealId, String dateId, String uid, String mealType) async {
     await FirebaseFirestore.instance
@@ -159,7 +147,6 @@ class _DayDetailState extends State<DayDetail> {
         .set({mealType: mealId, 'dateId': dateId}, SetOptions(merge: true));
   }
 
-  // Functie om de laatste maaltijden op te halen en in te stellen
   Future<void> _fetchAndSetLastMeals() async {
     setState(() => _isLoading = true);
     final String? uid = FirebaseAuth.instance.currentUser?.uid;
@@ -177,7 +164,6 @@ class _DayDetailState extends State<DayDetail> {
     };
 
     try {
-      // Fetch meals for the specific date
       final dateRef = FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
@@ -216,7 +202,6 @@ class _DayDetailState extends State<DayDetail> {
         }
       }
 
-      // Continue fetching last meals as before
       final mealsRef = FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
@@ -262,7 +247,7 @@ class _DayDetailState extends State<DayDetail> {
         backgroundColor = Colors.orange[200]!;
         break;
       default:
-        iconData = Icons.food_bank; // Default icon if none of the cases match
+        iconData = Icons.food_bank; 
         backgroundColor = Colors.grey[200]!;
     }
 
@@ -273,13 +258,11 @@ class _DayDetailState extends State<DayDetail> {
     );
   }
 
-  // Bouw de UI van de widget
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onHorizontalDragEnd: (DragEndDetails details) {
         if (details.primaryVelocity! > 0) {
-          // Swipe Right to go back
           Navigator.of(context).pop();
         }
       },
@@ -290,11 +273,11 @@ class _DayDetailState extends State<DayDetail> {
           title: Text(
             DateFormat('EEEE MMMM dd').format(widget.date),
             style: const TextStyle(
-              fontSize: 20, // Adjust font size
-              fontWeight: FontWeight.bold, // Make text bold
+              fontSize: 20, 
+              fontWeight: FontWeight.bold, 
             ),
           ),
-          centerTitle: true, // Center the title
+          centerTitle: true, 
 
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
@@ -311,12 +294,9 @@ class _DayDetailState extends State<DayDetail> {
                         children: [
                           Row(
                             children: [
-                              // Meal Icon
                               getMealIcon(entry.key),
-                              // SizedBox for spacing
                               const SizedBox(
-                                  width: 8), // Adjust the width as needed
-                              // Expanded TextField with label
+                                  width: 8), 
                               Expanded(
                                 child: TextField(
                                   controller: entry.value,
@@ -327,19 +307,16 @@ class _DayDetailState extends State<DayDetail> {
                               ),
                             ],
                           ),
-                          // New Row for Recurring Checkbox and DropdownButton with labels
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              // Padding for the Row containing the Recurring Checkbox to add space on the left
                               Padding(
                                 padding: const EdgeInsets.only(
-                                    left: 16.0), // Adjust the padding as needed
+                                    left: 16.0),
                                 child: Row(
                                   mainAxisSize: MainAxisSize
-                                      .min, // To keep the Row compact
+                                      .min, 
                                   children: [
-                                    // Recurring Checkbox
                                     Checkbox(
                                       value: _isRecurring[entry.key],
                                       onChanged: (bool? value) {
@@ -348,26 +325,24 @@ class _DayDetailState extends State<DayDetail> {
                                         });
                                       },
                                     ),
-                                    // Text label for Recurring Checkbox
                                     const Text('Recurring',
                                         style: TextStyle(
                                             fontSize:
-                                                12)), // Adjust the style as needed
+                                                12)), 
                                   ],
                                 ),
                               ),
-                              // Expanded Row for DropdownButton and its label
                               Expanded(
                                   child: Align(
                                 alignment: Alignment.centerRight,
                                 child: DropdownButton<String>(
                                   isExpanded:
-                                      false, // To ensure the dropdown does not fill the space
-                                  hint: const Text('previous'), // Placeholder
+                                      false, 
+                                  hint: const Text('previous'), 
                                   underline:
-                                      Container(), // Removes the underline of the dropdown button
+                                      Container(),
                                   icon: const Icon(
-                                      Icons.arrow_drop_down), // Dropdown icon
+                                      Icons.arrow_drop_down), 
                                   onChanged: (value) {
                                     setState(() {
                                       _controllers[entry.key]?.text =
@@ -403,7 +378,6 @@ class _DayDetailState extends State<DayDetail> {
   }
 }
 
-// Extensie om de eerste letter van een string te kapitaliseren
 extension StringExtension on String {
   String capitalize() {
     if (isEmpty) return "";
