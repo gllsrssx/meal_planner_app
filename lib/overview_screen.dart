@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'day_detail.dart';
@@ -48,13 +50,14 @@ class _OverviewScreenState extends State<OverviewScreen> {
             icon: const Icon(Icons.today),
             onPressed: () {
               final today = DateTime.now();
+              // No need to calculate difference from Monday, as the week starts from 'today'
+              final startOfWeek = today; // The week starts from today
               final difference =
-                  today.difference(widget.initialStartDate).inDays;
+                  startOfWeek.difference(widget.initialStartDate).inDays;
               final pageToJump = difference ~/ 7;
               _pageController.jumpToPage(pageToJump);
               setState(() {
-                _currentStartDate = DateTime.now()
-                    .subtract(Duration(days: DateTime.now().weekday - 1));
+                _currentStartDate = startOfWeek;
               });
             },
           ),
@@ -83,32 +86,55 @@ class _OverviewScreenState extends State<OverviewScreen> {
             itemCount: 7,
             itemBuilder: (context, index) {
               final day = weekStartDate.add(Duration(days: index));
-              final dayName = DateFormat('EEEE, d').format(day);
+              final dayName = DateFormat('EEEE d').format(day);
               return ListTile(
-                title: Text(dayName),
-                trailing: FutureBuilder<bool>(
-                  future: isMealSetForDay(day),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      );
-                    }
-                    if (snapshot.hasData && snapshot.data!) {
-                      return Icon(Icons.restaurant_menu);
-                    }
-                    return SizedBox.shrink(); // or any other placeholder
-                  },
+                title: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(dayName),
+                    FutureBuilder<Map<String, bool>>(
+                      future: getMealsForDay(day),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          );
+                        }
+                        if (snapshot.hasData) {
+                          final meals = snapshot.data!;
+                          return Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (meals['breakfast'] == true)
+                                Icon(Icons.free_breakfast),
+                              if (meals['lunch'] == true)
+                                Icon(Icons.lunch_dining),
+                              if (meals['dinner'] == true)
+                                Icon(Icons.dinner_dining),
+                              if (meals['snack'] == true) Icon(Icons.fastfood),
+                            ],
+                          );
+                        }
+                        return SizedBox.shrink(); // or any other placeholder
+                      },
+                    ),
+                  ],
                 ),
-                onTap: () {
-                  Navigator.push(
+                onTap: () async {
+                  final result = await Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => DayDetail(date: day),
                     ),
                   );
+                  if (result == true) {
+                    setState(() {
+                      // This forces the widget to rebuild and getMealsForDay to be called again for the updated day
+                    });
+                  }
                 },
               );
             },
@@ -118,10 +144,46 @@ class _OverviewScreenState extends State<OverviewScreen> {
     );
   }
 
-  Future<bool> isMealSetForDay(DateTime day) async {
-    // Implement your logic to check if a meal is set for the given day.
-    // This could involve querying a database or local storage.
-    // For demonstration, this always returns true.
-    return true;
+  Future<Map<String, bool>> getMealsForDay(DateTime day) async {
+    final String? uid = FirebaseAuth.instance.currentUser?.uid;
+    Map<String, bool> meals = {
+      'breakfast': false,
+      'lunch': false,
+      'dinner': false,
+      'snack': false
+    };
+    if (uid == null) {
+      print("User not logged in");
+      return meals;
+    }
+    final String formattedDate = DateFormat('yyyy-MM-dd').format(day);
+    try {
+      final dateRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('dates')
+          .where('date', isEqualTo: formattedDate)
+          .limit(1);
+      final dateSnapshot = await dateRef.get();
+      if (dateSnapshot.docs.isNotEmpty) {
+        final String dateId = dateSnapshot.docs.first.id;
+        final metadataRef = FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .collection('metadata')
+            .doc(dateId);
+        final metadataSnapshot = await metadataRef.get();
+        if (metadataSnapshot.exists) {
+          final data = metadataSnapshot.data()!;
+          meals['breakfast'] = data.containsKey('breakfast');
+          meals['lunch'] = data.containsKey('lunch');
+          meals['dinner'] = data.containsKey('dinner');
+          meals['snack'] = data.containsKey('snack');
+        }
+      }
+    } catch (e) {
+      print("Error fetching meals for day: $e");
+    }
+    return meals;
   }
 }

@@ -65,7 +65,7 @@ class _DayDetailState extends State<DayDetail> {
       }
 
       Fluttertoast.showToast(msg: "Maaltijden succesvol opgeslagen!");
-      Navigator.pop(context);
+      Navigator.pop(context, true);
     } catch (e) {
       Fluttertoast.showToast(msg: "Fout bij het opslaan van maaltijden: $e");
     } finally {
