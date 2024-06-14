@@ -17,14 +17,43 @@ class _DayDetailState extends State<DayDetail> {
   final TextEditingController _breakfastController = TextEditingController();
   final TextEditingController _lunchController = TextEditingController();
   final TextEditingController _dinnerController = TextEditingController();
+  final TextEditingController _snackController =
+      TextEditingController(); // Snack controller
   bool _isLoading = false; // To track loading state
+
+  @override
+  void initState() {
+    super.initState();
+    fetchAndSetLastMeals();
+  }
+
+  Future<void> fetchAndSetLastMeals() async {
+    final breakfastMeals = await _fetchPastMeals('breakfast');
+    if (breakfastMeals.isNotEmpty) {
+      _breakfastController.text = breakfastMeals.last;
+    }
+
+    final lunchMeals = await _fetchPastMeals('lunch');
+    if (lunchMeals.isNotEmpty) {
+      _lunchController.text = lunchMeals.last;
+    }
+
+    final dinnerMeals = await _fetchPastMeals('dinner');
+    if (dinnerMeals.isNotEmpty) {
+      _dinnerController.text = dinnerMeals.last;
+    }
+
+    final snackMeals = await _fetchPastMeals('snack');
+    if (snackMeals.isNotEmpty) {
+      _snackController.text = snackMeals.last;
+    }
+  }
 
   Future<void> _saveMealData() async {
     setState(() {
       _isLoading = true;
     });
     try {
-      final String formattedDate = DateFormat('yyyy-MM-dd').format(widget.date);
       await Future.wait([
         if (_breakfastController.text.isNotEmpty)
           saveMealIfNotExists('breakfast', _breakfastController),
@@ -32,8 +61,11 @@ class _DayDetailState extends State<DayDetail> {
           saveMealIfNotExists('lunch', _lunchController),
         if (_dinnerController.text.isNotEmpty)
           saveMealIfNotExists('dinner', _dinnerController),
+        if (_snackController.text.isNotEmpty) // Save snack if not empty
+          saveMealIfNotExists('snack', _snackController),
       ]);
       Fluttertoast.showToast(msg: "Meals saved successfully!");
+      Navigator.pop(context); // Navigate back after saving
     } catch (e) {
       Fluttertoast.showToast(msg: "Error saving meals: $e");
     } finally {
@@ -46,40 +78,37 @@ class _DayDetailState extends State<DayDetail> {
   Future<void> saveMealIfNotExists(
       String mealType, TextEditingController controller) async {
     final String formattedDate = DateFormat('yyyy-MM-dd').format(widget.date);
-    final String? uid =
-        FirebaseAuth.instance.currentUser?.uid; // Get current user UID
-    if (uid == null) return; // Ensure UID is not null
+    final String? uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
 
     final querySnapshot = await FirebaseFirestore.instance
         .collection('meals')
         .where('date', isEqualTo: formattedDate)
         .where('mealType', isEqualTo: mealType)
         .where('name', isEqualTo: controller.text)
-        .where('uid', isEqualTo: uid) // Query by UID
+        .where('uid', isEqualTo: uid)
         .get();
 
     if (querySnapshot.docs.isEmpty) {
-      // No existing entry found, include UID in the document
       await FirebaseFirestore.instance.collection('meals').add({
         'name': controller.text,
         'date': formattedDate,
         'mealType': mealType,
-        'uid': uid, // Include UID
+        'uid': uid,
       });
     }
   }
 
   Future<List<String>> _fetchPastMeals(String? mealType) async {
     final String formattedDate = DateFormat('yyyy-MM-dd').format(widget.date);
-    final String? uid =
-        FirebaseAuth.instance.currentUser?.uid; // Get current user UID
-    if (uid == null) return []; // Ensure UID is not null
+    final String? uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return [];
 
     final querySnapshot = await FirebaseFirestore.instance
         .collection('meals')
         .where('date', isEqualTo: formattedDate)
         .where('mealType', isEqualTo: mealType)
-        .where('uid', isEqualTo: uid) // Query by UID
+        .where('uid', isEqualTo: uid)
         .get();
 
     List<String> mealNames = [];
@@ -152,6 +181,8 @@ class _DayDetailState extends State<DayDetail> {
                 'Lunch', Icons.lunch_dining, _lunchController, 'lunch'),
             _buildMealInputRow(
                 'Dinner', Icons.dinner_dining, _dinnerController, 'dinner'),
+            _buildMealInputRow('Snack', Icons.cookie, _snackController,
+                'snack'), // Snack input row
             const SizedBox(height: 20),
             _isLoading
                 ? const CircularProgressIndicator()
