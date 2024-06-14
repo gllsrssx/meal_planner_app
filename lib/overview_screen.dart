@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:intl/intl.dart';
 import 'day_detail.dart';
 
@@ -34,6 +35,8 @@ class _OverviewScreenState extends State<OverviewScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Theme.of(context).canvasColor,
+        elevation: 4.0,
         title: Text(
             '${DateFormat('MMMM dd').format(_currentStartDate)} - ${DateFormat('dd').format(_currentStartDate.add(const Duration(days: 6)))}'),
         automaticallyImplyLeading: false,
@@ -87,55 +90,97 @@ class _OverviewScreenState extends State<OverviewScreen> {
             itemBuilder: (context, index) {
               final day = weekStartDate.add(Duration(days: index));
               final dayName = DateFormat('EEEE d').format(day);
-              return ListTile(
-                title: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(dayName),
-                    FutureBuilder<Map<String, bool>>(
-                      future: getMealsForDay(day),
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          );
-                        }
-                        if (snapshot.hasData) {
-                          final meals = snapshot.data!;
-                          return Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (meals['breakfast'] == true)
-                                Icon(Icons.free_breakfast),
-                              if (meals['lunch'] == true)
-                                Icon(Icons.lunch_dining),
-                              if (meals['dinner'] == true)
-                                Icon(Icons.dinner_dining),
-                              if (meals['snack'] == true) Icon(Icons.fastfood),
-                            ],
-                          );
-                        }
-                        return SizedBox.shrink(); // or any other placeholder
-                      },
+              return Padding(
+                padding:
+                    const EdgeInsets.all(3.0), // Adds outer padding to each row
+                child: Card(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(
+                        10.0), // Rounds the corners of the card
+                  ),
+                  child: ListTile(
+                    contentPadding: EdgeInsets.symmetric(
+                        vertical: 3.0,
+                        horizontal: 6.0), // Adjusts ListTile padding
+                    title: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          dayName,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold, // Makes text bold
+                            fontSize: 16, // Increases font size
+                          ),
+                        ),
+                        FutureBuilder<Map<String, bool>>(
+                          future: getMealsForDay(day),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              );
+                            }
+                            if (snapshot.hasData) {
+                              final meals = snapshot.data!;
+                              return Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (meals['breakfast'] == true)
+                                    CircleAvatar(
+                                      // Adds background to icons
+                                      radius: 12,
+                                      backgroundColor: Colors.blue[200],
+                                      child: const Icon(Icons.free_breakfast,
+                                          size: 16),
+                                    ),
+                                  if (meals['lunch'] == true)
+                                    CircleAvatar(
+                                      radius: 12,
+                                      backgroundColor: Colors.green[200],
+                                      child: const Icon(Icons.lunch_dining,
+                                          size: 16),
+                                    ),
+                                  if (meals['dinner'] == true)
+                                    CircleAvatar(
+                                      radius: 12,
+                                      backgroundColor: Colors.red[200],
+                                      child: const Icon(Icons.dinner_dining,
+                                          size: 16),
+                                    ),
+                                  if (meals['snack'] == true)
+                                    CircleAvatar(
+                                      radius: 12,
+                                      backgroundColor: Colors.orange[200],
+                                      child: const Icon(Icons.cookie, size: 16),
+                                    ),
+                                ],
+                              );
+                            }
+                            return const SizedBox
+                                .shrink(); // or any other placeholder
+                          },
+                        ),
+                      ],
                     ),
-                  ],
+                    onTap: () async {
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => DayDetail(date: day),
+                        ),
+                      );
+                      if (result == true) {
+                        setState(() {
+                          // Refresh the list
+                        });
+                      }
+                    },
+                  ),
                 ),
-                onTap: () async {
-                  final result = await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => DayDetail(date: day),
-                    ),
-                  );
-                  if (result == true) {
-                    setState(() {
-                      // This forces the widget to rebuild and getMealsForDay to be called again for the updated day
-                    });
-                  }
-                },
               );
             },
           );
@@ -153,7 +198,7 @@ class _OverviewScreenState extends State<OverviewScreen> {
       'snack': false
     };
     if (uid == null) {
-      print("User not logged in");
+      Fluttertoast.showToast(msg: 'User not logged in');
       return meals;
     }
     final String formattedDate = DateFormat('yyyy-MM-dd').format(day);
@@ -182,7 +227,7 @@ class _OverviewScreenState extends State<OverviewScreen> {
         }
       }
     } catch (e) {
-      print("Error fetching meals for day: $e");
+      Fluttertoast.showToast(msg: 'Error fetching meals for day: $e');
     }
     return meals;
   }

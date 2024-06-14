@@ -25,6 +25,12 @@ class _DayDetailState extends State<DayDetail> {
     'dinner': TextEditingController(),
     'snack': TextEditingController(),
   };
+  final Map<String, bool> _isRecurring = {
+    'breakfast': false,
+    'lunch': false,
+    'dinner': false,
+    'snack': false,
+  };
   bool _isLoading = false; // Laadindicatorstatus
   Map<String, List<String>> _previousMeals = {
     'breakfast': [],
@@ -47,20 +53,27 @@ class _DayDetailState extends State<DayDetail> {
       Fluttertoast.showToast(msg: "Gebruiker niet ingelogd");
       return;
     }
-    final String formattedDate = DateFormat('yyyy-MM-dd').format(widget.date);
 
     try {
-      // Zorg ervoor dat de datum bestaat en verkrijg het ID
-      final dateId = await _ensureDateExists(formattedDate, uid);
-
-      // Sla elke maaltijd op als deze niet bestaat
       for (var entry in _controllers.entries) {
         if (entry.value.text.isNotEmpty) {
+          final String formattedDate =
+              DateFormat('yyyy-MM-dd').format(widget.date);
+          final dateId = await _ensureDateExists(formattedDate, uid);
           final mealId =
               await _ensureMealExists(entry.value.text, entry.key, uid);
-
-          // Koppel de maaltijd aan de datum
           await _linkMealAndDate(mealId, dateId, uid, entry.key);
+
+          if (_isRecurring[entry.key]!) {
+            // Adjusted to use widget.date.weekday to find remaining days of the same weekday
+            final List<DateTime> remainingWeekdays =
+                _findRemainingWeekdays(widget.date, widget.date.weekday - 1);
+            for (var day in remainingWeekdays) {
+              final String formattedDay = DateFormat('yyyy-MM-dd').format(day);
+              final dayDateId = await _ensureDateExists(formattedDay, uid);
+              await _linkMealAndDate(mealId, dayDateId, uid, entry.key);
+            }
+          }
         }
       }
 
@@ -71,6 +84,22 @@ class _DayDetailState extends State<DayDetail> {
     } finally {
       setState(() => _isLoading = false);
     }
+  }
+
+  // Helper function to find all remaining days of a specified weekday until the end of the month
+  List<DateTime> _findRemainingWeekdays(DateTime startDate, int weekday) {
+    List<DateTime> weekdays = [];
+    int daysToAdd = (weekday - (startDate.weekday - 1) + 7) % 7;
+    if (daysToAdd == 0) {
+      daysToAdd =
+          7; // Start from the next occurrence if today matches the weekday
+    }
+    DateTime tempDate = startDate.add(Duration(days: daysToAdd));
+    while (tempDate.month == startDate.month) {
+      weekdays.add(tempDate);
+      tempDate = tempDate.add(const Duration(days: 7));
+    }
+    return weekdays;
   }
 
   // Functie om te controleren of een maaltijd bestaat, zo niet, maak deze aan
@@ -211,50 +240,112 @@ class _DayDetailState extends State<DayDetail> {
     }
   }
 
+  Icon getMealIcon(String mealType) {
+    switch (mealType.toLowerCase()) {
+      case 'breakfast':
+        return const Icon(Icons.free_breakfast);
+      case 'lunch':
+        return const Icon(Icons.lunch_dining);
+      case 'dinner':
+        return const Icon(Icons.dinner_dining);
+      case 'snack':
+        return const Icon(Icons.cookie);
+      default:
+        return const Icon(
+            Icons.food_bank); // Default icon if none of the cases match
+    }
+  }
+
   // Bouw de UI van de widget
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        // make the title dynamic based on the selected date
-        title: Text(DateFormat('dd MMMM yy').format(widget.date)),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              children: _controllers.entries.map((entry) {
-                return Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Column(
-                    children: [
-                      TextField(
-                        controller: entry.value,
-                        decoration: InputDecoration(
-                          labelText: entry.key.capitalize(),
-                        ),
-                      ),
-                      DropdownButton<String>(
-                        hint: Text("Selecteer vorige ${entry.key}"),
-                        items: _previousMeals[entry.key]?.map((String value) {
-                          return DropdownMenuItem<String>(
-                            value: value,
-                            child: Text(value),
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            _controllers[entry.key]?.text = value ?? "";
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
+    return GestureDetector(
+      onHorizontalDragEnd: (DragEndDetails details) {
+        if (details.primaryVelocity! > 0) {
+          // Swipe Right to go back
+          Navigator.of(context).pop();
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: Theme.of(context).canvasColor,
+          elevation: 4.0,
+          title: Text(
+            DateFormat('EEEE MMMM dd').format(widget.date),
+            style: const TextStyle(
+              fontSize: 20, // Adjust font size
+              fontWeight: FontWeight.bold, // Make text bold
             ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _saveMealData,
-        child: const Icon(Icons.save),
+          ),
+          centerTitle: true, // Center the title
+
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ),
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : ListView(
+                children: _controllers.entries.map((entry) {
+                  return Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Checkbox(
+                              value: _isRecurring[entry.key],
+                              onChanged: (bool? value) {
+                                setState(() {
+                                  _isRecurring[entry.key] = value!;
+                                });
+                              },
+                            ),
+                            Expanded(
+                              child: TextField(
+                                controller: entry.value,
+                                decoration: InputDecoration(
+                                  prefixIcon: getMealIcon(entry.key),
+                                  labelText: entry.key.capitalize(),
+                                  suffixIcon: DropdownButton<String>(
+                                    underline:
+                                        Container(), // Removes the underline of the dropdown button
+                                    icon: const Icon(
+                                        Icons.arrow_drop_down), // Dropdown icon
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _controllers[entry.key]?.text =
+                                            value ?? "";
+                                      });
+                                    },
+                                    items: _previousMeals[entry.key]
+                                        ?.map<DropdownMenuItem<String>>(
+                                            (String value) {
+                                      return DropdownMenuItem<String>(
+                                        value: value,
+                                        child: Text(value),
+                                      );
+                                    }).toList(),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: _saveMealData,
+          child: const Icon(Icons.save),
+        ),
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+        bottomNavigationBar: const BottomAppBar(
+          child: SizedBox(height: 56),
+        ),
       ),
     );
   }
