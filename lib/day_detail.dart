@@ -1,202 +1,269 @@
+// Importeer de benodigde pakketten
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 
+// Definieer de DayDetail klasse die een StatefulWidget is
 class DayDetail extends StatefulWidget {
-  final DateTime date;
+  final DateTime date; // Datum voor de detailpagina
 
+  // Constructor voor DayDetail met vereiste datumparameter
   const DayDetail({super.key, required this.date});
 
   @override
   _DayDetailState createState() => _DayDetailState();
 }
 
+// De staat van de DayDetail widget
 class _DayDetailState extends State<DayDetail> {
-  final TextEditingController _breakfastController = TextEditingController();
-  final TextEditingController _lunchController = TextEditingController();
-  final TextEditingController _dinnerController = TextEditingController();
-  final TextEditingController _snackController =
-      TextEditingController(); // Snack controller
-  bool _isLoading = false; // To track loading state
+  // Map voor het bijhouden van tekstveldcontrollers voor verschillende maaltijden
+  final Map<String, TextEditingController> _controllers = {
+    'breakfast': TextEditingController(),
+    'lunch': TextEditingController(),
+    'dinner': TextEditingController(),
+    'snack': TextEditingController(),
+  };
+  bool _isLoading = false; // Laadindicatorstatus
+  Map<String, List<String>> _previousMeals = {
+    'breakfast': [],
+    'lunch': [],
+    'dinner': [],
+    'snack': [],
+  };
 
   @override
   void initState() {
     super.initState();
-    fetchAndSetLastMeals();
+    _fetchAndSetLastMeals(); // Haal de laatste maaltijden op bij initialisatie
   }
 
-  Future<void> fetchAndSetLastMeals() async {
-    final breakfastMeals = await _fetchPastMeals('breakfast');
-    if (breakfastMeals.isNotEmpty) {
-      _breakfastController.text = breakfastMeals.last;
-    }
-
-    final lunchMeals = await _fetchPastMeals('lunch');
-    if (lunchMeals.isNotEmpty) {
-      _lunchController.text = lunchMeals.last;
-    }
-
-    final dinnerMeals = await _fetchPastMeals('dinner');
-    if (dinnerMeals.isNotEmpty) {
-      _dinnerController.text = dinnerMeals.last;
-    }
-
-    final snackMeals = await _fetchPastMeals('snack');
-    if (snackMeals.isNotEmpty) {
-      _snackController.text = snackMeals.last;
-    }
-  }
-
+  // Functie om maaltijdgegevens op te slaan
   Future<void> _saveMealData() async {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
+    final String? uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      Fluttertoast.showToast(msg: "Gebruiker niet ingelogd");
+      return;
+    }
+    final String formattedDate = DateFormat('yyyy-MM-dd').format(widget.date);
+
     try {
-      await Future.wait([
-        if (_breakfastController.text.isNotEmpty)
-          saveMealIfNotExists('breakfast', _breakfastController),
-        if (_lunchController.text.isNotEmpty)
-          saveMealIfNotExists('lunch', _lunchController),
-        if (_dinnerController.text.isNotEmpty)
-          saveMealIfNotExists('dinner', _dinnerController),
-        if (_snackController.text.isNotEmpty) // Save snack if not empty
-          saveMealIfNotExists('snack', _snackController),
-      ]);
-      Fluttertoast.showToast(msg: "Meals saved successfully!");
-      Navigator.pop(context); // Navigate back after saving
+      // Zorg ervoor dat de datum bestaat en verkrijg het ID
+      final dateId = await _ensureDateExists(formattedDate, uid);
+
+      // Sla elke maaltijd op als deze niet bestaat
+      for (var entry in _controllers.entries) {
+        if (entry.value.text.isNotEmpty) {
+          final mealId =
+              await _ensureMealExists(entry.value.text, entry.key, uid);
+
+          // Koppel de maaltijd aan de datum
+          await _linkMealAndDate(mealId, dateId, uid, entry.key);
+        }
+      }
+
+      Fluttertoast.showToast(msg: "Maaltijden succesvol opgeslagen!");
+      Navigator.pop(context);
     } catch (e) {
-      Fluttertoast.showToast(msg: "Error saving meals: $e");
+      Fluttertoast.showToast(msg: "Fout bij het opslaan van maaltijden: $e");
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  // Functie om te controleren of een maaltijd bestaat, zo niet, maak deze aan
+  Future<String> _ensureMealExists(
+      String name, String mealType, String uid) async {
+    final mealRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('meals')
+        .where('name', isEqualTo: name)
+        .where('type', isEqualTo: mealType)
+        .limit(1);
+
+    final querySnapshot = await mealRef.get();
+    if (querySnapshot.docs.isEmpty) {
+      final docRef = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('meals')
+          .add({'name': name, 'type': mealType});
+      return docRef.id;
+    } else {
+      return querySnapshot.docs.first.id;
+    }
+  }
+
+  // Functie om te controleren of een datum bestaat, zo niet, maak deze aan
+  Future<String> _ensureDateExists(String date, String uid) async {
+    final dateRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('dates')
+        .where('date', isEqualTo: date)
+        .limit(1);
+
+    final querySnapshot = await dateRef.get();
+    if (querySnapshot.docs.isEmpty) {
+      final docRef = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('dates')
+          .add({'date': date});
+      return docRef.id;
+    } else {
+      return querySnapshot.docs.first.id;
+    }
+  }
+
+  // Functie om een maaltijd te koppelen aan een datum
+  Future<void> _linkMealAndDate(
+      String mealId, String dateId, String uid, String mealType) async {
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('metadata')
+        .doc(dateId)
+        .set({mealType: mealId, 'dateId': dateId}, SetOptions(merge: true));
+  }
+
+  // Functie om de laatste maaltijden op te halen en in te stellen
+  Future<void> _fetchAndSetLastMeals() async {
+    setState(() => _isLoading = true);
+    final String? uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      Fluttertoast.showToast(msg: "Gebruiker niet ingelogd");
+      return;
+    }
+
+    final String formattedDate = DateFormat('yyyy-MM-dd').format(widget.date);
+    Map<String, List<String>> tempPreviousMeals = {
+      'breakfast': [],
+      'lunch': [],
+      'dinner': [],
+      'snack': [],
+    };
+
+    try {
+      // Fetch meals for the specific date
+      final dateRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('dates')
+          .where('date', isEqualTo: formattedDate)
+          .limit(1);
+      final dateSnapshot = await dateRef.get();
+      String? dateId;
+      if (dateSnapshot.docs.isNotEmpty) {
+        dateId = dateSnapshot.docs.first.id;
+      }
+
+      if (dateId != null) {
+        final metadataRef = FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .collection('metadata')
+            .doc(dateId);
+        final metadataSnapshot = await metadataRef.get();
+        if (metadataSnapshot.exists) {
+          Map<String, dynamic> metadata = metadataSnapshot.data()!;
+          for (var mealType in _controllers.keys) {
+            if (metadata.containsKey(mealType)) {
+              final mealId = metadata[mealType];
+              final mealDoc = await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(uid)
+                  .collection('meals')
+                  .doc(mealId)
+                  .get();
+              if (mealDoc.exists) {
+                _controllers[mealType]?.text = mealDoc.data()?['name'] ?? "";
+              }
+            }
+          }
+        }
+      }
+
+      // Continue fetching last meals as before
+      final mealsRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('meals');
+      final querySnapshot = await mealsRef.get();
+      for (var doc in querySnapshot.docs) {
+        String mealType = doc.data()['type'];
+        String mealName = doc.data()['name'];
+        if (tempPreviousMeals.containsKey(mealType)) {
+          tempPreviousMeals[mealType]?.add(mealName);
+        }
+      }
+    } catch (e) {
+      Fluttertoast.showToast(
+          msg: "Fout bij het ophalen van vorige maaltijden: $e");
     } finally {
       setState(() {
+        _previousMeals = tempPreviousMeals;
         _isLoading = false;
       });
     }
   }
 
-  Future<void> saveMealIfNotExists(
-      String mealType, TextEditingController controller) async {
-    final String formattedDate = DateFormat('yyyy-MM-dd').format(widget.date);
-    final String? uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
-
-    final querySnapshot = await FirebaseFirestore.instance
-        .collection('meals')
-        .where('date', isEqualTo: formattedDate)
-        .where('mealType', isEqualTo: mealType)
-        .where('name', isEqualTo: controller.text)
-        .where('uid', isEqualTo: uid)
-        .get();
-
-    if (querySnapshot.docs.isEmpty) {
-      await FirebaseFirestore.instance.collection('meals').add({
-        'name': controller.text,
-        'date': formattedDate,
-        'mealType': mealType,
-        'uid': uid,
-      });
-    }
-  }
-
-  Future<List<String>> _fetchPastMeals(String? mealType) async {
-    final String formattedDate = DateFormat('yyyy-MM-dd').format(widget.date);
-    final String? uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return [];
-
-    final querySnapshot = await FirebaseFirestore.instance
-        .collection('meals')
-        .where('date', isEqualTo: formattedDate)
-        .where('mealType', isEqualTo: mealType)
-        .where('uid', isEqualTo: uid)
-        .get();
-
-    List<String> mealNames = [];
-    for (var doc in querySnapshot.docs) {
-      mealNames.add(doc.data()['name'] as String);
-    }
-    return mealNames;
-  }
-
-  Future<void> _showMealSelectionDialog(
-      TextEditingController controller, String mealType) async {
-    final List<String> pastMeals = await _fetchPastMeals(mealType);
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Select a $mealType'),
-          content: SingleChildScrollView(
-            child: ListBody(
-              children: pastMeals.map((String meal) {
-                return GestureDetector(
-                  child: Text(meal),
-                  onTap: () {
-                    controller.text = meal;
-                    Navigator.of(context).pop();
-                  },
-                );
-              }).toList(),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildMealInputRow(String label, IconData icon,
-      TextEditingController controller, String mealType) {
-    return Row(
-      children: [
-        Icon(icon),
-        const SizedBox(width: 8),
-        Expanded(
-          child: TextField(
-            controller: controller,
-            decoration: InputDecoration(labelText: label),
-          ),
-        ),
-        IconButton(
-          icon: const Icon(Icons.arrow_drop_down),
-          onPressed: () => _showMealSelectionDialog(controller, mealType),
-        ),
-      ],
-    );
-  }
-
+  // Bouw de UI van de widget
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(DateFormat('EEEE, d MMM y').format(widget.date)),
+        // make the title dynamic based on the selected date
+        title: Text(DateFormat('dd MMMM yy').format(widget.date)),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            _buildMealInputRow('Breakfast', Icons.breakfast_dining,
-                _breakfastController, 'breakfast'),
-            _buildMealInputRow(
-                'Lunch', Icons.lunch_dining, _lunchController, 'lunch'),
-            _buildMealInputRow(
-                'Dinner', Icons.dinner_dining, _dinnerController, 'dinner'),
-            _buildMealInputRow('Snack', Icons.cookie, _snackController,
-                'snack'), // Snack input row
-            const SizedBox(height: 20),
-            _isLoading
-                ? const CircularProgressIndicator()
-                : ElevatedButton(
-                    onPressed: _saveMealData,
-                    child: const Text('Save and Back'),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(
+              children: _controllers.entries.map((entry) {
+                return Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Column(
+                    children: [
+                      TextField(
+                        controller: entry.value,
+                        decoration: InputDecoration(
+                          labelText: entry.key.capitalize(),
+                        ),
+                      ),
+                      DropdownButton<String>(
+                        hint: Text("Selecteer vorige ${entry.key}"),
+                        items: _previousMeals[entry.key]?.map((String value) {
+                          return DropdownMenuItem<String>(
+                            value: value,
+                            child: Text(value),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _controllers[entry.key]?.text = value ?? "";
+                          });
+                        },
+                      ),
+                    ],
                   ),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Back without saving'),
+                );
+              }).toList(),
             ),
-          ],
-        ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _saveMealData,
+        child: const Icon(Icons.save),
       ),
     );
+  }
+}
+
+// Extensie om de eerste letter van een string te kapitaliseren
+extension StringExtension on String {
+  String capitalize() {
+    if (isEmpty) return "";
+    return "${this[0].toUpperCase()}${substring(1)}";
   }
 }

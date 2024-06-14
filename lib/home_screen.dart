@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:meal_planner_app/week_overview.dart';
+import 'package:meal_planner_app/overview_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -19,7 +19,7 @@ class HomeScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: WeekOverview(
+      body: OverviewScreen(
         initialStartDate: DateTime.now(),
       ),
     );

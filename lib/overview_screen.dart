@@ -2,16 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'day_detail.dart';
 
-class WeekOverview extends StatefulWidget {
+class OverviewScreen extends StatefulWidget {
   final DateTime initialStartDate;
 
-  const WeekOverview({super.key, required this.initialStartDate});
+  const OverviewScreen({super.key, required this.initialStartDate});
 
   @override
-  State<WeekOverview> createState() => _WeekOverviewState();
+  State<OverviewScreen> createState() => _OverviewScreenState();
 }
 
-class _WeekOverviewState extends State<WeekOverview> {
+class _OverviewScreenState extends State<OverviewScreen> {
   late PageController _pageController;
   late DateTime _currentStartDate;
 
@@ -71,14 +71,12 @@ class _WeekOverviewState extends State<WeekOverview> {
       body: PageView.builder(
         controller: _pageController,
         onPageChanged: (index) {
-          // Update the start date based on the page index
           setState(() {
             _currentStartDate =
                 widget.initialStartDate.add(Duration(days: 7 * index));
           });
         },
         itemBuilder: (context, pageIndex) {
-          // Calculate the start date for the current week page
           final weekStartDate =
               widget.initialStartDate.add(Duration(days: 7 * pageIndex));
           return ListView.builder(
@@ -88,13 +86,21 @@ class _WeekOverviewState extends State<WeekOverview> {
               final dayName = DateFormat('EEEE, d').format(day);
               return ListTile(
                 title: Text(dayName),
-                subtitle: const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Text('Breakfast: ${getMeal(day, 'breakfast')}'),
-                    // Text('Lunch: ${getMeal(day, 'lunch')}'),
-                    // Text('Dinner: ${getMeal(day, 'dinner')}'),
-                  ],
+                trailing: FutureBuilder<bool>(
+                  future: isMealSetForDay(day),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      );
+                    }
+                    if (snapshot.hasData && snapshot.data!) {
+                      return Icon(Icons.restaurant_menu);
+                    }
+                    return SizedBox.shrink(); // or any other placeholder
+                  },
                 ),
                 onTap: () {
                   Navigator.push(
@@ -112,8 +118,10 @@ class _WeekOverviewState extends State<WeekOverview> {
     );
   }
 
-  String getMeal(DateTime day, String mealType) {
-    // Mock data for demonstration
-    return 'Example meal';
+  Future<bool> isMealSetForDay(DateTime day) async {
+    // Implement your logic to check if a meal is set for the given day.
+    // This could involve querying a database or local storage.
+    // For demonstration, this always returns true.
+    return true;
   }
 }
