@@ -99,7 +99,7 @@ class _OverviewScreenState extends State<OverviewScreen> {
                         10.0), // Rounds the corners of the card
                   ),
                   child: ListTile(
-                    contentPadding: EdgeInsets.symmetric(
+                    contentPadding: const EdgeInsets.symmetric(
                         vertical: 3.0,
                         horizontal: 6.0), // Adjusts ListTile padding
                     title: Row(
@@ -107,7 +107,7 @@ class _OverviewScreenState extends State<OverviewScreen> {
                       children: [
                         Text(
                           dayName,
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontWeight: FontWeight.bold, // Makes text bold
                             fontSize: 16, // Increases font size
                           ),
@@ -124,49 +124,60 @@ class _OverviewScreenState extends State<OverviewScreen> {
                                     CircularProgressIndicator(strokeWidth: 2),
                               );
                             }
-                            if (snapshot.hasData) {
-                              final meals = snapshot.data!;
-                              return Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  if (meals['breakfast'] == true)
-                                    CircleAvatar(
-                                      // Adds background to icons
-                                      radius: 12,
-                                      backgroundColor: Colors.blue[200],
-                                      child: const Icon(Icons.free_breakfast,
-                                          size: 16),
-                                    ),
-                                  if (meals['lunch'] == true)
-                                    CircleAvatar(
-                                      radius: 12,
-                                      backgroundColor: Colors.green[200],
-                                      child: const Icon(Icons.lunch_dining,
-                                          size: 16),
-                                    ),
-                                  if (meals['dinner'] == true)
-                                    CircleAvatar(
-                                      radius: 12,
-                                      backgroundColor: Colors.red[200],
-                                      child: const Icon(Icons.dinner_dining,
-                                          size: 16),
-                                    ),
-                                  if (meals['snack'] == true)
-                                    CircleAvatar(
-                                      radius: 12,
-                                      backgroundColor: Colors.orange[200],
-                                      child: const Icon(Icons.cookie, size: 16),
-                                    ),
-                                ],
-                              );
+                            if (!snapshot.hasData) {
+                              return const SizedBox
+                                  .shrink(); // Placeholder for no data
                             }
-                            return const SizedBox
-                                .shrink(); // or any other placeholder
+                            final meals = snapshot.data!;
+                            List<Widget> children = [];
+
+                            if (meals['breakfast'] == true) {
+                              children.add(CircleAvatar(
+                                radius: 12,
+                                backgroundColor: Colors.blue[200],
+                                child:
+                                    const Icon(Icons.free_breakfast, size: 16),
+                              ));
+                            }
+                            if (meals['lunch'] == true) {
+                              if (children.isNotEmpty)
+                                children.add(SizedBox(width: 8)); // Add space
+                              children.add(CircleAvatar(
+                                radius: 12,
+                                backgroundColor: Colors.green[200],
+                                child: const Icon(Icons.lunch_dining, size: 16),
+                              ));
+                            }
+                            if (meals['dinner'] == true) {
+                              if (children.isNotEmpty)
+                                children.add(SizedBox(width: 8)); // Add space
+                              children.add(CircleAvatar(
+                                radius: 12,
+                                backgroundColor: Colors.red[200],
+                                child:
+                                    const Icon(Icons.dinner_dining, size: 16),
+                              ));
+                            }
+                            if (meals['snack'] == true) {
+                              if (children.isNotEmpty)
+                                children.add(SizedBox(width: 8)); // Add space
+                              children.add(CircleAvatar(
+                                radius: 12,
+                                backgroundColor: Colors.orange[200],
+                                child: const Icon(Icons.cookie, size: 16),
+                              ));
+                            }
+
+                            return Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: children);
                           },
                         ),
                       ],
                     ),
-                    onTap: () async {
+                    onTap: () => _showMealsPopup(context, day),
+                    onLongPress: () async {
+                      // Navigate to the DayDetail page on long press
                       final result = await Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -186,6 +197,107 @@ class _OverviewScreenState extends State<OverviewScreen> {
           );
         },
       ),
+    );
+  }
+
+  Future<List<Map<String, String>>> getDetailedMealsForDay(
+      DateTime date) async {
+    final String? uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      throw Exception("User not logged in");
+    }
+
+    final String formattedDate = DateFormat('yyyy-MM-dd').format(date);
+    print("Fetching meals for date: $formattedDate"); // Debug statement
+
+    List<Map<String, String>> detailedMeals = [];
+
+    try {
+      // Fetch meals for the specific date
+      final dateRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('dates')
+          .where('date', isEqualTo: formattedDate)
+          .limit(1);
+      final dateSnapshot = await dateRef.get();
+      String? dateId;
+      if (dateSnapshot.docs.isNotEmpty) {
+        dateId = dateSnapshot.docs.first.id;
+      } else {
+        print(
+            "No meals found for the specified date: $formattedDate"); // Debug statement
+        return [];
+      }
+
+      if (dateId != null) {
+        final metadataRef = FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .collection('metadata')
+            .doc(dateId);
+        final metadataSnapshot = await metadataRef.get();
+        if (metadataSnapshot.exists) {
+          Map<String, dynamic> metadata = metadataSnapshot.data()!;
+          for (var mealType in metadata.keys) {
+            final mealId = metadata[mealType];
+            final mealDoc = await FirebaseFirestore.instance
+                .collection('users')
+                .doc(uid)
+                .collection('meals')
+                .doc(mealId)
+                .get();
+            if (mealDoc.exists) {
+              detailedMeals.add(
+                  {'meal': mealType, 'details': mealDoc.data()?['name'] ?? ""});
+            }
+          }
+        }
+      }
+    } catch (e) {
+      print("Error fetching meals for day: $e");
+    }
+
+    return detailedMeals;
+  }
+
+  void _showMealsPopup(BuildContext context, DateTime day) async {
+    List<Map<String, String>> meals = await getDetailedMealsForDay(day);
+    // Define a mapping from meal types to icons
+    final Map<String, IconData> mealIcons = {
+      'breakfast': Icons.free_breakfast,
+      'lunch': Icons.lunch_dining,
+      'dinner': Icons.dinner_dining,
+      'snack': Icons.cookie,
+    };
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          content: meals.isNotEmpty
+              ? Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: meals.map((meal) {
+                    // Use the mapping to get the corresponding icon
+                    IconData icon = mealIcons[meal['meal']] ?? Icons.error;
+                    return ListTile(
+                      leading: Icon(icon), // Display the icon
+                      title: Text(meal['details'] ?? ''),
+                    );
+                  }).toList(),
+                )
+              : Text('No meals found for this day.'),
+          actions: [
+            TextButton(
+              child: Text('Close'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -227,7 +339,8 @@ class _OverviewScreenState extends State<OverviewScreen> {
         }
       }
     } catch (e) {
-      Fluttertoast.showToast(msg: 'Error fetching meals for day: $e');
+      // Fluttertoast.showToast(msg: 'Error fetching meals for day: $e');
+      print('Error fetching meals for day: $e');
     }
     return meals;
   }

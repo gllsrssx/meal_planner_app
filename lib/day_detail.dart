@@ -240,20 +240,37 @@ class _DayDetailState extends State<DayDetail> {
     }
   }
 
-  Icon getMealIcon(String mealType) {
-    switch (mealType.toLowerCase()) {
+  CircleAvatar getMealIcon(String mealType) {
+    IconData iconData;
+    Color backgroundColor;
+
+    switch (mealType) {
       case 'breakfast':
-        return const Icon(Icons.free_breakfast);
+        iconData = Icons.free_breakfast;
+        backgroundColor = Colors.blue[200]!;
+        break;
       case 'lunch':
-        return const Icon(Icons.lunch_dining);
+        iconData = Icons.lunch_dining;
+        backgroundColor = Colors.green[200]!;
+        break;
       case 'dinner':
-        return const Icon(Icons.dinner_dining);
+        iconData = Icons.dinner_dining;
+        backgroundColor = Colors.red[200]!;
+        break;
       case 'snack':
-        return const Icon(Icons.cookie);
+        iconData = Icons.cookie;
+        backgroundColor = Colors.orange[200]!;
+        break;
       default:
-        return const Icon(
-            Icons.food_bank); // Default icon if none of the cases match
+        iconData = Icons.food_bank; // Default icon if none of the cases match
+        backgroundColor = Colors.grey[200]!;
     }
+
+    return CircleAvatar(
+      radius: 12,
+      backgroundColor: backgroundColor,
+      child: Icon(iconData, size: 16),
+    );
   }
 
   // Bouw de UI van de widget
@@ -280,7 +297,7 @@ class _DayDetailState extends State<DayDetail> {
           centerTitle: true, // Center the title
 
           leading: IconButton(
-            icon: Icon(Icons.arrow_back),
+            icon: const Icon(Icons.arrow_back),
             onPressed: () => Navigator.of(context).pop(),
           ),
         ),
@@ -289,53 +306,88 @@ class _DayDetailState extends State<DayDetail> {
             : ListView(
                 children: _controllers.entries.map((entry) {
                   return Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            Checkbox(
-                              value: _isRecurring[entry.key],
-                              onChanged: (bool? value) {
-                                setState(() {
-                                  _isRecurring[entry.key] = value!;
-                                });
-                              },
-                            ),
-                            Expanded(
-                              child: TextField(
-                                controller: entry.value,
-                                decoration: InputDecoration(
-                                  prefixIcon: getMealIcon(entry.key),
-                                  labelText: entry.key.capitalize(),
-                                  suffixIcon: DropdownButton<String>(
-                                    underline:
-                                        Container(), // Removes the underline of the dropdown button
-                                    icon: const Icon(
-                                        Icons.arrow_drop_down), // Dropdown icon
-                                    onChanged: (value) {
-                                      setState(() {
-                                        _controllers[entry.key]?.text =
-                                            value ?? "";
-                                      });
-                                    },
-                                    items: _previousMeals[entry.key]
-                                        ?.map<DropdownMenuItem<String>>(
-                                            (String value) {
-                                      return DropdownMenuItem<String>(
-                                        value: value,
-                                        child: Text(value),
-                                      );
-                                    }).toList(),
+                      padding: const EdgeInsets.all(8.0),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              // Meal Icon
+                              getMealIcon(entry.key),
+                              // SizedBox for spacing
+                              const SizedBox(
+                                  width: 8), // Adjust the width as needed
+                              // Expanded TextField with label
+                              Expanded(
+                                child: TextField(
+                                  controller: entry.value,
+                                  decoration: InputDecoration(
+                                    labelText: entry.key.capitalize(),
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  );
+                            ],
+                          ),
+                          // New Row for Recurring Checkbox and DropdownButton with labels
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              // Padding for the Row containing the Recurring Checkbox to add space on the left
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                    left: 16.0), // Adjust the padding as needed
+                                child: Row(
+                                  mainAxisSize: MainAxisSize
+                                      .min, // To keep the Row compact
+                                  children: [
+                                    // Recurring Checkbox
+                                    Checkbox(
+                                      value: _isRecurring[entry.key],
+                                      onChanged: (bool? value) {
+                                        setState(() {
+                                          _isRecurring[entry.key] = value!;
+                                        });
+                                      },
+                                    ),
+                                    // Text label for Recurring Checkbox
+                                    const Text('Recurring',
+                                        style: TextStyle(
+                                            fontSize:
+                                                12)), // Adjust the style as needed
+                                  ],
+                                ),
+                              ),
+                              // Expanded Row for DropdownButton and its label
+                              Expanded(
+                                  child: Align(
+                                alignment: Alignment.centerRight,
+                                child: DropdownButton<String>(
+                                  isExpanded:
+                                      false, // To ensure the dropdown does not fill the space
+                                  hint: const Text('previous'), // Placeholder
+                                  underline:
+                                      Container(), // Removes the underline of the dropdown button
+                                  icon: const Icon(
+                                      Icons.arrow_drop_down), // Dropdown icon
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _controllers[entry.key]?.text =
+                                          value ?? "";
+                                    });
+                                  },
+                                  items: _previousMeals[entry.key]
+                                      ?.map<DropdownMenuItem<String>>(
+                                          (String value) {
+                                    return DropdownMenuItem<String>(
+                                      value: value,
+                                      child: Text(value),
+                                    );
+                                  }).toList(),
+                                ),
+                              )),
+                            ],
+                          )
+                        ],
+                      ));
                 }).toList(),
               ),
         floatingActionButton: FloatingActionButton(
